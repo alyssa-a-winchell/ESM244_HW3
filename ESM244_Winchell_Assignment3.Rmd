@@ -1,0 +1,166 @@
+---
+title: "ESM 244 Assignment 3"
+author: "Alyssa Winchell"
+date: "March 3, 2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+##Part 1: Open Science Perspectives
+
+##Part 2: Truckee River Flow (200 - 2016)
+
+Attach Packages:
+
+```{r packages}
+
+suppressPackageStartupMessages(library(tidyverse))
+suppressPackageStartupMessages(library(tseries))
+suppressPackageStartupMessages(library(forecast))
+suppressPackageStartupMessages(library(sf))
+suppressPackageStartupMessages(library(tmap))
+suppressPackageStartupMessages(library(leaflet))
+suppressPackageStartupMessages(library(ggrepel))
+suppressPackageStartupMessages(library(ggspatial))
+suppressPackageStartupMessages(library(RColorBrewer))
+suppressPackageStartupMessages(library(raster))
+
+```
+
+
+Load Data and Convert to Time Series Data:
+
+```{r truckeedat, message=FALSE, warning=FALSE}
+
+truckee_flow <- read_csv("truckee_flow.csv")
+truckee <- as.numeric(truckee_flow$mean_va) %>%
+  na.omit()
+
+truck_ts <- ts(truckee, frequency = 12, start = c(2000,1))
+
+plot(truck_ts)
+
+```
+
+Decomposed Time Series Graph:
+
+```{r decomp}
+
+truck_dec <- decompose(truck_ts)
+plot(truck_dec)
+
+```
+
+Test if Stationary:
+
+```{r station}
+
+adf_truck <- adf.test(truck_ts)
+adf_truck
+
+#another plot
+monthplot(truck_ts)
+
+```
+
+The time series data appears additive because of the constant seasonal pattern and is also stationary (Dickey-Fuller test = -5.54, p= 0.01. There is a decreasing trend and seasonality as indicated by the consistent pattern and relatively large scale in the decomposition plot. Seasonal patterns occur every year while cyclical patterns occur about every 10 years.
+
+Forcasting Truckee River Flow:
+Holt Winters
+
+```{r HW}
+
+truck_hw <- HoltWinters(truck_ts) #performs the Holt Winters
+plot(truck_hw)
+
+truck_forecast <- forecast(truck_hw, h = 60) #forecast from HW
+plot(truck_forecast, xlab = 'Year', ylab = 'Discharge (Cubic Feet Per Second', main = 'Mean Monthly Flow in the Truckee River (2000 - 2021)')
+
+```
+
+```{r residuals}
+
+hist(truck_forecast$residuals)
+
+```
+
+The residuals appear to be normally distributed.
+
+##Part 3: Mapping California's National Parks
+
+Load Data: National Parks
+
+```{r natparks}
+
+ca_nat <- read_sf(dsn = ".", layer = "nps_boundary") %>% #read in data
+  dplyr::filter(UNIT_TYPE == "National Park") #select only National Parks
+
+st_crs(ca_nat) = 4326 #set coordinate reference system to 4326
+
+plot(ca_nat)
+
+```
+
+Load Data: California Counties
+
+```{r counties}
+
+ca_counties <- read_sf(dsn = ".", layer = "california_county_shape_file") #read in data
+
+st_crs(ca_counties) = 4326 #set coordinate reference system to 4326
+
+plot(ca_counties)
+
+nat_clip <- st_intersection(ca_nat, ca_counties) #crops to just CA
+plot(nat_clip)
+
+```
+
+Select Unique Values in Park Names for Labels:
+
+```{r unique}
+
+lab_name <- unique(nat_clip$UNIT_NAME) %>% #only selects unique park names
+  
+
+```
+
+
+Create a Map of National Parks:
+
+```{r map, message=FALSE, warning=FALSE}
+
+parks <- st_centroid(nat_clip) #finds centroids of every Park
+lab_coords <- st_coordinates(parks) #finds coords for labels
+nat_labs <- cbind(parks, lab_coords)
+
+ggplot()  +
+  geom_sf(data = ca_counties,
+          fill = "lavender",
+          color = "NA") +
+  geom_sf(data= nat_clip,
+          aes(fill = UNIT_NAME),
+          show.legend = FALSE) +
+  scale_fill_brewer(palette = "Set1") +
+  theme_minimal() +
+  labs(title = "California National Parks") +
+  geom_text_repel(data = unique(nat_labs),
+                  aes(X, Y, label = UNIT_NAME))
+
+
+```
+
+##Part 4: Lizards in the Northern Chihuahuan Desert – Data Wrangling and Analysis
+
+Read in Data:
+
+```{r lizard, message=FALSE, warning=FALSE}
+
+desert_lizard <- read_csv("lter_lizard_pitfall.csv")
+
+```
+
+Data Wrangling:
