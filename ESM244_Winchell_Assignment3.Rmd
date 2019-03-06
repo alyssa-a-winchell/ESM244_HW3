@@ -56,7 +56,7 @@ plot(truck_dec)
 
 Test if Stationary:
 
-```{r station}
+```{r station, warning=FALSE}
 
 adf_truck <- adf.test(truck_ts)
 adf_truck
@@ -93,7 +93,7 @@ The residuals appear to be normally distributed.
 
 Load Data: National Parks
 
-```{r natparks}
+```{r natparks, warning=FALSE}
 
 ca_nat <- read_sf(dsn = ".", layer = "nps_boundary") %>% #read in data
   dplyr::filter(UNIT_TYPE == "National Park") #select only National Parks
@@ -106,7 +106,7 @@ plot(ca_nat)
 
 Load Data: California Counties
 
-```{r counties}
+```{r counties, warning=FALSE, message=FALSE}
 
 ca_counties <- read_sf(dsn = ".", layer = "california_county_shape_file") #read in data
 
@@ -123,7 +123,7 @@ Select Unique Values in Park Names for Labels:
 
 ```{r unique}
 
-lab_name <- unique(nat_clip$UNIT_NAME) %>% #only selects unique park names
+lab_name <- unique(nat_clip$UNIT_NAME) #only selects unique park names
   
 
 ```
@@ -159,8 +159,135 @@ Read in Data:
 
 ```{r lizard, message=FALSE, warning=FALSE}
 
-desert_lizard <- read_csv("lter_lizard_pitfall.csv")
+desert_lizard <- read_csv("lter_lizard_pitfall.csv") %>%
+  filter(site == "CALI")
 
 ```
 
 Data Wrangling:
+Do the weight of male and female lizards differ significantly?
+
+```{r weight, message = FALSE, warning = FALSE}
+
+mf_liz <- desert_lizard %>%
+  dplyr::select(sex,weight)
+
+female <- mf_liz %>% #data frame for only female lizards
+  filter(sex == "F")
+
+f_liz <- female$weight #pull out all the female data in the weight column. only doing this bc t test fxn has to have values instead of data frame
+
+#create a data set called male and a vector 'm' with weights only
+
+male <- mf_liz %>%
+  filter(sex == "M")
+
+m_liz <- male$weight
+
+f <- as.numeric(f_liz)
+m <- as.numeric(m_liz)
+
+```
+
+Explore for normality:
+
+```{r}
+
+#histogram and qqplot for f and m group
+# have all 4 plots show up in one window
+
+par(mfrow = c(2,2)) # number of rows, columns for the plots in one window
+hist(f)
+qqnorm(f)
+hist(m)
+qqnorm(m)
+
+#shapiro-wilk test for normality test the null hyp that data are normally distributed
+
+shapiro.test(f)
+shapiro.test(m)
+#in this case reject null, so it's not normal dist
+#in this case, still going to use a t test for this data bc of histograms, qqplots, and bc n >> 30 in both cases
+
+```
+
+F test for equal variances:
+
+```{r f_test}
+
+# For F test:
+#N0 = the ratio of sample variances equals 1 (variances are equal)
+#H1: the ratio of sample variances is NOT 1 (variances not equal)
+
+f_test <- var.test(f,m)
+f_test
+
+#with p value of 0.2938, retain the null that our sample variances are equal
+
+```
+
+Two-sample t tests to compare means:
+
+```{r sigdiff}
+
+t_test_diff <- t.test(f,m,var.equal = TRUE) # var.equal bc we est. eq var in f test
+t_test_diff
+
+```
+
+If the mean weight of females and males is the same, the probablity that we could get means at least this different by random chance is 42.7%.
+
+There is no significant differnce in the weights of female lizards (n = 79) and male lizards (n = 58) trapped in California (t(130) = 0.796, p = 0.427, alpha= 0.05).
+
+Is there a significant difference in the proportion of adult female and male lizards with broken tails?
+
+```{r tails}
+
+tail_cond <- desert_lizard %>%
+  dplyr::select(sex, tail) %>%
+  dplyr::filter(sex != "J", sex != ".", tail != ".")
+
+male_broke <- tail_cond %>%
+  dplyr::filter(sex == "M", tail == "B")
+male_whole <- tail_cond %>%
+  dplyr::filter(sex == "M", tail == "W")
+
+female_broke <- tail_cond %>%
+  dplyr::filter(sex == "F", tail == "B")
+female_whole <- tail_cond %>%
+  dplyr::filter(sex == "F", tail == "W")
+
+MT <- c(46, 10)
+FT <- c(59, 18)
+tail_table <- rbind(MT, FT) #makes a table of the vectors
+colnames(tail_table) <- c("Whole", "Broken")
+rownames(tail_table) <- c("Male", "Female")
+
+tail_table
+
+```
+
+Table of Proportions:
+
+```{r prop}
+
+tail_prop <- prop.table(tail_table, margin = 1) #find the proportion of the data in each option by row
+tail_prop
+
+```
+
+Hypothesis Testing:
+
+H0: The proportiona of lizards with broken tails trapped in California is independent of sex.
+HA: The proportiona of lizards with broken tails trapped in California is dependent of sex.
+
+```{r chi}
+
+tail_chi <-chisq.test(tail_table)
+tail_chi
+
+#p value = 0.5786
+
+```
+
+There is no significant association between the proportion of lizards with broken tails trapped in California and sex ($\chi$^2^(1) = 0.309, $p$ = .5786, $\alpha$ = 0.05). Notably, fewer lizards are seen with broken tail than with whole tails for both sexes. Although it is not significant, more trapped females have been found with broken tails than trapped males.
