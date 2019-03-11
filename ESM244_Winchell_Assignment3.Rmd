@@ -11,6 +11,16 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ##Part 1: Open Science Perspectives
 
+Open science aims to increase reproducibility of a study and facilitate accessibility to its data, methods, and software. The McKiernan et al paper (2016) also cites many studies that suggest open science practices result in more citations and media coverage than traditional methods. Open source publications also allow more freedom in author rights and control of reuse, which in addition to several other benefits, require attribution to the author, securing more citations and properly allocating credit. Additionally, because many prestigious organizations have taken several steps that encourage open science practices, participating in open science is becoming easier to fund.
+
+Open science, however, is limited by the biases of the system that built it. While transparent peer review processes can increase the quality of their criticism and the rigorousness of their claims, it can also open up reviewers to backlash and responses based in unconscious biases based on their identities. Many of its other limitations come from its perception as less rigorous and prestigious, dissuading some scientists from participating out of fear for advancing their careers in a competitive environment. This can also be a limitation if a developing scientist interested in open science is working under a more experienced scientist that is not interested in that route due to concerns of prestige and thoroughness.
+
+For example, the Oakology research group has documented all metadata in detail in one document. This metadata will ultimately be available on a published Shiny app which also displays the project’s inputs and outputs. Excluding data with sharing restrictions, all of the data files that we have created will be made publicly available and any data we have collected will be redistributed. Uploading code to GitHub, automating as much of our methods as possible through shareable code, and clearly documenting all research steps will increase the openness of our project and allow for reproducibility by our clients. Working on documents on Box and Google Docs also allows for openness with team members. Additionally, over the summer, my internship project with Eli Lilly only used open source data as inputs into its model so that proprietary data issues will not limit the applications of the research, although the model itself is proprietary. This project also required me to submit several Freedom of Information Act Requests (FOIAs) and public information requests, a useful skill for acquiring publicly available data that can be harder to actually access.
+
+My Eli Lilly project could be more open by allowing their model to be open source. Currently, even users who have been allowed access to it are not allowed to use any code to interact with the program. This means that although creating the output for the 88 different scenarios required was very repetitive with a large room for error in setting up the program each time, scripts could not be made to automate the process. Allowing scripts would make accountability and troubleshooting much easier and would allow for those viewing the code to potentially catch typos or incorrect inputs. Research on pharmaceauticals in the United States is also very limited by governmental protections of company sales data. Because this data cannot be released without the permission of the company, researchers must either find other metrics for the amount of a given drug prescribed in the US or pay thousands of dollars for the required data. This means that researchers with no ties to the pharmaceutical companies will not have the means to accurately acquire the data, while company researchers that either have enough money or are given access to the data have conflicting interests.
+
+
+
 ##Part 2: Truckee River Flow (200 - 2016)
 
 Attach Packages:
@@ -121,9 +131,14 @@ plot(nat_clip)
 
 Select Unique Values in Park Names for Labels:
 
-```{r unique}
+```{r unique, message=FALSE, warning=FALSE}
 
-lab_name <- unique(nat_clip$UNIT_NAME) #only selects unique park names
+parks <- st_centroid(nat_clip) #finds centroids of every Park
+lab_coords <- st_coordinates(parks) #finds coords for labels
+nat_labs <- cbind(parks, lab_coords)
+
+lab_name <- nat_labs[-c(2, 4:9, 13, 16:21,24:26), ] #only selects unique park names. There are 9 different parks
+lab_name$UNIT_NAME <- str_remove(lab_name$UNIT_NAME, "National Park")
   
 
 ```
@@ -132,10 +147,6 @@ lab_name <- unique(nat_clip$UNIT_NAME) #only selects unique park names
 Create a Map of National Parks:
 
 ```{r map, message=FALSE, warning=FALSE}
-
-parks <- st_centroid(nat_clip) #finds centroids of every Park
-lab_coords <- st_coordinates(parks) #finds coords for labels
-nat_labs <- cbind(parks, lab_coords)
 
 ggplot()  +
   geom_sf(data = ca_counties,
@@ -147,7 +158,7 @@ ggplot()  +
   scale_fill_brewer(palette = "Set1") +
   theme_minimal() +
   labs(title = "California National Parks") +
-  geom_text_repel(data = unique(nat_labs),
+  geom_text_repel(data = lab_name,
                   aes(X, Y, label = UNIT_NAME))
 
 
